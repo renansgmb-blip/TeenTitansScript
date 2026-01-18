@@ -30,20 +30,38 @@ local personagemAutoPegar = "Muteno Evil"
 
 -- Coordenadas dos personagens
 local PersonagensCoords = {
-    -- HERÓIS
+    -- HERÓIS PRINCIPAIS
     ["Estelar"] = Vector3.new(5.99, 339.20, -0.58),
     ["Robin"] = Vector3.new(6.45, 342.46, 22.14),
     ["Ciborgue"] = Vector3.new(7.05, 338.49, 12.33),
     ["Ravena"] = Vector3.new(6.71, 338.44, 35.39),
     ["Mutano"] = Vector3.new(6.87, 338.39, 48.06),
     
-    -- VILÕES
+    -- VILÕES PRINCIPAIS
     ["Muteno Evil"] = Vector3.new(168.34, 338.49, 33.62),
     ["Estelar Evil"] = Vector3.new(164.23, 338.49, 23.42),
     ["Ciborgue Evil"] = Vector3.new(168.84, 338.49, 14.69),
     ["Morte Vermelha"] = Vector3.new(31.01, 338.49, 14.78),
     ["Slayer"] = Vector3.new(30.92, 338.48, 23.78),
-    ["Goliath"] = Vector3.new(50.72, 338.49, 13.16)
+    ["Goliath"] = Vector3.new(50.72, 338.49, 13.16),
+    
+    -- HERÓIS ADICIONAIS
+    ["Apprentice (Aprendiz)"] = Vector3.new(-323.00, 189.36, -318.02),
+    ["Gadget (Gadget)"] = Vector3.new(50.01, 338.28, 31.40),
+    ["Lynx (Lince)"] = Vector3.new(50.67, 338.46, 23.16),
+    ["Vision (Visão)"] = Vector3.new(50.79, 338.20, 7.94),
+    ["Blacklight (Luz Negra)"] = Vector3.new(51.49, 338.39, -19.72),
+    ["Maya (Maya)"] = Vector3.new(-322.77, 189.64, -317.63),
+    ["Golem (Golem)"] = Vector3.new(88.11, 338.30, 22.66),
+    ["Sentinel (Sentinela)"] = Vector3.new(127.89, 338.39, 22.62),
+    ["Aquaman (Aquaman)"] = Vector3.new(146.99, 340.89, 5.38),
+    ["Arrow (Flecha)"] = Vector3.new(146.33, 340.17, 14.45),
+    ["Honeybee (Abelha)"] = Vector3.new(145.47, 340.36, 22.88),
+    ["Plus Minus (Mais Menos)"] = Vector3.new(145.71, 340.89, 33.44),
+    ["Lightspeed (Velocidade Luz)"] = Vector3.new(146.40, 338.28, 43.83),
+    ["Wicked Tempest (Tempestade)"] = Vector3.new(51.08, 338.31, 69.07),
+    ["Duke Splitter (Duque)"] = Vector3.new(50.54, 338.58, 41.21),
+    ["Overlord (Overlord)"] = Vector3.new(182.64, 338.44, 23.58)
 }
 
 -- Cria a janela principal
@@ -177,7 +195,23 @@ CharacterGroup:AddDropdown('AutoPickCharacterSelect', {
         'Ciborgue Evil',
         'Morte Vermelha',
         'Slayer',
-        'Goliath'
+        'Goliath',
+        'Apprentice (Aprendiz)',
+        'Gadget (Gadget)',
+        'Lynx (Lince)',
+        'Vision (Visão)',
+        'Blacklight (Luz Negra)',
+        'Maya (Maya)',
+        'Golem (Golem)',
+        'Sentinel (Sentinela)',
+        'Aquaman (Aquaman)',
+        'Arrow (Flecha)',
+        'Honeybee (Abelha)',
+        'Plus Minus (Mais Menos)',
+        'Lightspeed (Velocidade Luz)',
+        'Wicked Tempest (Tempestade)',
+        'Duke Splitter (Duque)',
+        'Overlord (Overlord)'
     },
     Default = 1,
     Multi = false,
@@ -343,6 +377,169 @@ QuickTeleportGroup:AddButton({
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords.Goliath)
             Library:Notify('Teleportado para Goliath!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddDivider()
+QuickTeleportGroup:AddLabel('🦸 HERÓIS ADICIONAIS:')
+
+QuickTeleportGroup:AddButton({
+    Text = '🎓 Apprentice',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Apprentice (Aprendiz)"])
+            Library:Notify('Teleportado para Apprentice!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '🔧 Gadget',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Gadget (Gadget)"])
+            Library:Notify('Teleportado para Gadget!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '🐆 Lynx',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Lynx (Lince)"])
+            Library:Notify('Teleportado para Lynx!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '👁️ Vision',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Vision (Visão)"])
+            Library:Notify('Teleportado para Vision!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '🌑 Blacklight',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Blacklight (Luz Negra)"])
+            Library:Notify('Teleportado para Blacklight!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '💃 Maya',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Maya (Maya)"])
+            Library:Notify('Teleportado para Maya!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '🗿 Golem',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Golem (Golem)"])
+            Library:Notify('Teleportado para Golem!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '🛡️ Sentinel',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Sentinel (Sentinela)"])
+            Library:Notify('Teleportado para Sentinel!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '🌊 Aquaman',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Aquaman (Aquaman)"])
+            Library:Notify('Teleportado para Aquaman!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '🏹 Arrow',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Arrow (Flecha)"])
+            Library:Notify('Teleportado para Arrow!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '🐝 Honeybee',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Honeybee (Abelha)"])
+            Library:Notify('Teleportado para Honeybee!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '➕➖ Plus Minus',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Plus Minus (Mais Menos)"])
+            Library:Notify('Teleportado para Plus Minus!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '⚡ Lightspeed',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Lightspeed (Velocidade Luz)"])
+            Library:Notify('Teleportado para Lightspeed!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '🌪️ Wicked Tempest',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Wicked Tempest (Tempestade)"])
+            Library:Notify('Teleportado para Wicked Tempest!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '👑 Duke Splitter',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Duke Splitter (Duque)"])
+            Library:Notify('Teleportado para Duke Splitter!', 2)
+        end
+    end,
+})
+
+QuickTeleportGroup:AddButton({
+    Text = '👿 Overlord',
+    Func = function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(PersonagensCoords["Overlord (Overlord)"])
+            Library:Notify('Teleportado para Overlord!', 2)
         end
     end,
 })
@@ -529,32 +726,42 @@ FarmGroup:AddDropdown('AutoFarmCharacterSelect', {
         'Muteno Evil', 
         'Mutano', 
         'Robin',
-        '---',
+        '--- HERÓIS PRINCIPAIS ---',
         'Estelar', 
         'Ciborgue', 
-        'Ravena', 
+        'Ravena',
+        '--- VILÕES PRINCIPAIS ---',
         'Estelar Evil',
         'Ciborgue Evil',
         'Morte Vermelha',
         'Slayer',
-        'Goliath'
+        'Goliath',
+        '--- HERÓIS ADICIONAIS ---',
+        'Apprentice (Aprendiz)',
+        'Gadget (Gadget)',
+        'Lynx (Lince)',
+        'Vision (Visão)',
+        'Blacklight (Luz Negra)',
+        'Maya (Maya)',
+        'Golem (Golem)',
+        'Sentinel (Sentinela)',
+        'Aquaman (Aquaman)',
+        'Arrow (Flecha)',
+        'Honeybee (Abelha)',
+        'Plus Minus (Mais Menos)',
+        'Lightspeed (Velocidade Luz)',
+        'Wicked Tempest (Tempestade)',
+        'Duke Splitter (Duque)',
+        'Overlord (Overlord)'
     },
     Default = 1,
     Multi = false,
     Text = 'Personagem do Auto Farm',
     Tooltip = 'Personagem que o Auto Farm vai usar',
     Callback = function(Value)
-        if Value ~= '---' then
+        if not string.find(Value, '---') then
             personagemSelecionado = Value
             Library:Notify('Auto Farm usará: ' .. Value, 3)
-            
-            -- Debug: mostrar coordenadas
-            local coords = PersonagensCoords[Value]
-            if coords then
-                print("Coordenadas de " .. Value .. ": " .. tostring(coords))
-            else
-                print("ERRO: Coordenadas não encontradas para " .. Value)
-            end
         end
     end
 })
