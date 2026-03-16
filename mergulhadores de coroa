@@ -1,0 +1,408 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local function quemTemCoroa()
+    local characters = workspace:FindFirstChild("Characters")
+    if not characters then return nil end
+    for _, char in ipairs(characters:GetChildren()) do
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if root and root:FindFirstChild("Crown") then
+            return char
+        end
+    end
+    return nil
+end
+
+local function pegarCoroa()
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
+    local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return end
+
+    local coroaChar = quemTemCoroa()
+    if not coroaChar then
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "👑 Coroa",
+            Text = "Ninguém está com a coroa agora!",
+            Duration = 3,
+        })
+        return
+    end
+
+    local coroaRoot = coroaChar:FindFirstChild("HumanoidRootPart")
+    if not coroaRoot then return end
+
+    local posicaoOriginal = myRoot.CFrame
+    local inicio = tick()
+    while tick() - inicio < 1 do
+        if not coroaRoot or not coroaRoot.Parent then break end
+        myRoot.CFrame = coroaRoot.CFrame * CFrame.new(0, 0, 1)
+        task.wait(0.03)
+    end
+    myRoot.CFrame = posicaoOriginal
+end
+
+local function pegarCoroaSeguro()
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
+    local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return end
+    local hum = myChar:FindFirstChildOfClass("Humanoid")
+
+    local coroaChar = quemTemCoroa()
+    if not coroaChar then
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "👑 Coroa",
+            Text = "Ninguém está com a coroa agora!",
+            Duration = 3,
+        })
+        return
+    end
+
+    local coroaRoot = coroaChar:FindFirstChild("HumanoidRootPart")
+    if not coroaRoot then return end
+
+    local inicio = tick()
+    while tick() - inicio < 1 do
+        if not coroaRoot or not coroaRoot.Parent then break end
+        myRoot.CFrame = coroaRoot.CFrame * CFrame.new(0, 0, 1)
+        task.wait(0.03)
+    end
+
+    if hum then hum.PlatformStand = true end
+    local destino = CFrame.new(Vector3.new(5.00, 946.00, 386.00))
+    local inicio2 = tick()
+    while tick() - inicio2 < 0.5 do
+        myRoot.CFrame = destino
+        task.wait()
+    end
+
+    for _, part in ipairs(myChar:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.Anchored = true
+        end
+    end
+
+    if hum then hum.PlatformStand = false end
+
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "✅ Local Seguro!",
+        Text = "Você está ancorado no céu!",
+        Duration = 5,
+    })
+end
+
+-- =====================================================
+-- ESP DA COROA
+-- =====================================================
+local espAtivo = false
+local espBillboard = nil
+local espConexao = nil
+
+local function criarESP(char)
+    if espBillboard then espBillboard:Destroy() end
+
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "CoroaESP"
+    bb.Size = UDim2.new(0, 120, 0, 50)
+    bb.StudsOffset = Vector3.new(0, 3, 0)
+    bb.AlwaysOnTop = true
+    bb.Parent = root
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0.6, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "👑 COROA"
+    label.TextColor3 = Color3.fromRGB(255, 220, 0)
+    label.TextSize = 14
+    label.Font = Enum.Font.GothamBold
+    label.Parent = bb
+
+    local distLabel = Instance.new("TextLabel")
+    distLabel.Size = UDim2.new(1, 0, 0.4, 0)
+    distLabel.Position = UDim2.new(0, 0, 0.6, 0)
+    distLabel.BackgroundTransparency = 1
+    distLabel.Text = ""
+    distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    distLabel.TextSize = 11
+    distLabel.Font = Enum.Font.Gotham
+    distLabel.Parent = bb
+
+    -- Atualiza distância
+    espConexao = RunService.RenderStepped:Connect(function()
+        local myChar = LocalPlayer.Character
+        if not myChar or not root or not root.Parent then
+            if espConexao then espConexao:Disconnect() end
+            return
+        end
+        local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+        if myRoot then
+            local dist = math.floor((root.Position - myRoot.Position).Magnitude)
+            distLabel.Text = char.Name .. " | " .. dist .. " studs"
+        end
+    end)
+
+    espBillboard = bb
+end
+
+local function removerESP()
+    if espBillboard then espBillboard:Destroy() espBillboard = nil end
+    if espConexao then espConexao:Disconnect() espConexao = nil end
+end
+
+local function atualizarESP()
+    if not espAtivo then removerESP() return end
+    local coroaChar = quemTemCoroa()
+    if coroaChar then
+        criarESP(coroaChar)
+    else
+        removerESP()
+    end
+end
+
+workspace.DescendantAdded:Connect(function(obj)
+    if obj.Name == "Crown" and espAtivo then
+        task.wait(0.1)
+        atualizarESP()
+    end
+end)
+workspace.DescendantRemoving:Connect(function(obj)
+    if obj.Name == "Crown" then
+        removerESP()
+    end
+end)
+
+-- =====================================================
+-- GUI
+-- =====================================================
+local gui = Instance.new("ScreenGui")
+gui.Name = "TrixHub"
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 999
+gui.Parent = LocalPlayer.PlayerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 280)
+frame.Position = UDim2.new(0, 10, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+frame.BackgroundTransparency = 0.1
+frame.BorderSizePixel = 0
+frame.Parent = gui
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+
+local titulo = Instance.new("TextLabel")
+titulo.Size = UDim2.new(1, 0, 0, 40)
+titulo.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+titulo.Text = "⚡ TRIX HUB"
+titulo.TextColor3 = Color3.fromRGB(220, 220, 220)
+titulo.TextSize = 16
+titulo.Font = Enum.Font.GothamBold
+titulo.Parent = frame
+Instance.new("UICorner", titulo).CornerRadius = UDim.new(0, 10)
+
+local abaCoroa = Instance.new("TextButton")
+abaCoroa.Size = UDim2.new(0.5, -6, 0, 28)
+abaCoroa.Position = UDim2.new(0, 5, 0, 44)
+abaCoroa.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+abaCoroa.Text = "👑 Coroa"
+abaCoroa.TextColor3 = Color3.fromRGB(255, 255, 255)
+abaCoroa.TextSize = 12
+abaCoroa.Font = Enum.Font.GothamBold
+abaCoroa.Parent = frame
+Instance.new("UICorner", abaCoroa).CornerRadius = UDim.new(0, 6)
+
+local abaCreditos = Instance.new("TextButton")
+abaCreditos.Size = UDim2.new(0.5, -6, 0, 28)
+abaCreditos.Position = UDim2.new(0.5, 1, 0, 44)
+abaCreditos.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+abaCreditos.Text = "📋 Créditos"
+abaCreditos.TextColor3 = Color3.fromRGB(160, 160, 160)
+abaCreditos.TextSize = 12
+abaCreditos.Font = Enum.Font.GothamBold
+abaCreditos.Parent = frame
+Instance.new("UICorner", abaCreditos).CornerRadius = UDim.new(0, 6)
+
+-- Painel Coroa
+local painelCoroa = Instance.new("Frame")
+painelCoroa.Size = UDim2.new(1, -10, 1, -80)
+painelCoroa.Position = UDim2.new(0, 5, 0, 78)
+painelCoroa.BackgroundTransparency = 1
+painelCoroa.Parent = frame
+
+local donoLabel = Instance.new("TextLabel")
+donoLabel.Size = UDim2.new(1, 0, 0, 26)
+donoLabel.Position = UDim2.new(0, 0, 0, 0)
+donoLabel.BackgroundTransparency = 1
+donoLabel.Text = "👑 Com: " .. tostring(quemTemCoroa() and quemTemCoroa().Name or "ninguém")
+donoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+donoLabel.TextSize = 12
+donoLabel.Font = Enum.Font.GothamBold
+donoLabel.Parent = painelCoroa
+
+local btnPegar = Instance.new("TextButton")
+btnPegar.Size = UDim2.new(1, 0, 0, 38)
+btnPegar.Position = UDim2.new(0, 0, 0, 32)
+btnPegar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+btnPegar.Text = "👑 Pegar Coroa"
+btnPegar.TextColor3 = Color3.fromRGB(220, 220, 220)
+btnPegar.TextSize = 13
+btnPegar.Font = Enum.Font.GothamBold
+btnPegar.Parent = painelCoroa
+Instance.new("UICorner", btnPegar).CornerRadius = UDim.new(0, 6)
+
+local btnPegarSeguro = Instance.new("TextButton")
+btnPegarSeguro.Size = UDim2.new(1, 0, 0, 38)
+btnPegarSeguro.Position = UDim2.new(0, 0, 0, 76)
+btnPegarSeguro.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+btnPegarSeguro.Text = "🛡️ Pegar Coroa e Ir pra Local Seguro"
+btnPegarSeguro.TextColor3 = Color3.fromRGB(220, 220, 220)
+btnPegarSeguro.TextSize = 12
+btnPegarSeguro.Font = Enum.Font.GothamBold
+btnPegarSeguro.TextWrapped = true
+btnPegarSeguro.Parent = painelCoroa
+Instance.new("UICorner", btnPegarSeguro).CornerRadius = UDim.new(0, 6)
+
+local btnESP = Instance.new("TextButton")
+btnESP.Size = UDim2.new(1, 0, 0, 38)
+btnESP.Position = UDim2.new(0, 0, 0, 120)
+btnESP.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+btnESP.Text = "🔍 ESP Coroa: OFF"
+btnESP.TextColor3 = Color3.fromRGB(220, 220, 220)
+btnESP.TextSize = 13
+btnESP.Font = Enum.Font.GothamBold
+btnESP.Parent = painelCoroa
+Instance.new("UICorner", btnESP).CornerRadius = UDim.new(0, 6)
+
+-- Painel Créditos
+local painelCreditos = Instance.new("Frame")
+painelCreditos.Size = UDim2.new(1, -10, 1, -80)
+painelCreditos.Position = UDim2.new(0, 5, 0, 78)
+painelCreditos.BackgroundTransparency = 1
+painelCreditos.Visible = false
+painelCreditos.Parent = frame
+
+local logo = Instance.new("TextLabel")
+logo.Size = UDim2.new(1, 0, 0, 40)
+logo.Position = UDim2.new(0, 0, 0, 20)
+logo.BackgroundTransparency = 1
+logo.Text = "⚡ TRIX HUB"
+logo.TextColor3 = Color3.fromRGB(220, 220, 220)
+logo.TextSize = 24
+logo.Font = Enum.Font.GothamBold
+logo.Parent = painelCreditos
+
+local feito = Instance.new("TextLabel")
+feito.Size = UDim2.new(1, 0, 0, 24)
+feito.Position = UDim2.new(0, 0, 0, 70)
+feito.BackgroundTransparency = 1
+feito.Text = "Feito por"
+feito.TextColor3 = Color3.fromRGB(140, 140, 140)
+feito.TextSize = 13
+feito.Font = Enum.Font.Gotham
+feito.Parent = painelCreditos
+
+local autor = Instance.new("TextLabel")
+autor.Size = UDim2.new(1, 0, 0, 30)
+autor.Position = UDim2.new(0, 0, 0, 95)
+autor.BackgroundTransparency = 1
+autor.Text = "Renan26092013"
+autor.TextColor3 = Color3.fromRGB(255, 255, 255)
+autor.TextSize = 18
+autor.Font = Enum.Font.GothamBold
+autor.Parent = painelCreditos
+
+local versao = Instance.new("TextLabel")
+versao.Size = UDim2.new(1, 0, 0, 20)
+versao.Position = UDim2.new(0, 0, 0, 130)
+versao.BackgroundTransparency = 1
+versao.Text = "v1.0 — Mergulhadores de Coroa"
+versao.TextColor3 = Color3.fromRGB(100, 100, 100)
+versao.TextSize = 11
+versao.Font = Enum.Font.Gotham
+versao.Parent = painelCreditos
+
+-- Abas
+abaCoroa.MouseButton1Click:Connect(function()
+    painelCoroa.Visible = true
+    painelCreditos.Visible = false
+    abaCoroa.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    abaCoroa.TextColor3 = Color3.fromRGB(255, 255, 255)
+    abaCreditos.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    abaCreditos.TextColor3 = Color3.fromRGB(160, 160, 160)
+end)
+
+abaCreditos.MouseButton1Click:Connect(function()
+    painelCoroa.Visible = false
+    painelCreditos.Visible = true
+    abaCreditos.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    abaCreditos.TextColor3 = Color3.fromRGB(255, 255, 255)
+    abaCoroa.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    abaCoroa.TextColor3 = Color3.fromRGB(160, 160, 160)
+end)
+
+workspace.DescendantAdded:Connect(function(obj)
+    if obj.Name == "Crown" then
+        local dono = obj.Parent and obj.Parent.Parent
+        if dono then donoLabel.Text = "👑 Com: " .. dono.Name end
+        if espAtivo then task.wait(0.1) atualizarESP() end
+    end
+end)
+workspace.DescendantRemoving:Connect(function(obj)
+    if obj.Name == "Crown" then
+        donoLabel.Text = "👑 Com: ninguém"
+        removerESP()
+    end
+end)
+
+btnPegar.MouseButton1Click:Connect(function()
+    btnPegar.Text = "⏳ Indo..."
+    task.spawn(function()
+        pegarCoroa()
+        btnPegar.Text = "👑 Pegar Coroa"
+    end)
+end)
+
+btnPegarSeguro.MouseButton1Click:Connect(function()
+    btnPegarSeguro.Text = "⏳ Indo..."
+    task.spawn(function()
+        pegarCoroaSeguro()
+        btnPegarSeguro.Text = "🛡️ Pegar Coroa e Ir pra Local Seguro"
+    end)
+end)
+
+btnESP.MouseButton1Click:Connect(function()
+    espAtivo = not espAtivo
+    if espAtivo then
+        btnESP.Text = "🔍 ESP Coroa: ON"
+        btnESP.TextColor3 = Color3.fromRGB(100, 255, 100)
+        atualizarESP()
+    else
+        btnESP.Text = "🔍 ESP Coroa: OFF"
+        btnESP.TextColor3 = Color3.fromRGB(220, 220, 220)
+        removerESP()
+    end
+end)
+
+-- Drag
+local dragging, dragStart, startPos
+titulo.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true; dragStart = input.Position; startPos = frame.Position
+    end
+end)
+UIS.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local d = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+    end
+end)
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+
+print("✅ Trix Hub carregado!")
