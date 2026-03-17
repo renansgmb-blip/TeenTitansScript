@@ -1,0 +1,733 @@
+-- ═══════════════════════════════════════════════════════════
+--   JUJUTSU SHARINGANS HUB  v2
+--   ESP • Noclip (corrigido) • Hitbox • Anti-Lag • Minimizar
+-- ═══════════════════════════════════════════════════════════
+
+local Players          = game:GetService("Players")
+local RunService       = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService     = game:GetService("TweenService")
+local Lighting         = game:GetService("Lighting")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera      = workspace.CurrentCamera
+
+local Config = {
+    EspEnabled      = false,
+    NoclipEnabled   = false,
+    HitboxEnabled   = false,
+    AntiLagEnabled  = false,
+    HitboxSize      = 10,
+    MaxDist         = 1000,
+    BodyParts       = {
+        "Head","Torso","UpperTorso","LowerTorso",
+        "Left Arm","Right Arm","LeftUpperArm","RightUpperArm",
+        "LeftLowerArm","RightLowerArm",
+        "Left Leg","Right Leg","LeftUpperLeg","RightUpperLeg",
+        "LeftLowerLeg","RightLowerLeg",
+    },
+}
+
+_G.HitboxSize = Config.HitboxSize
+
+local EspObjects = {}
+local Destroyed  = false
+local AllConns   = {}
+local minimized  = false
+local ActiveTab  = "ESP"
+
+local function TC(c) table.insert(AllConns, c); return c end
+
+local function GetRoot()
+    local c = LocalPlayer.Character
+    return c and c:FindFirstChild("HumanoidRootPart")
+end
+
+local function GetHP(player)
+    local c = player.Character; if not c then return 0, 100 end
+    local h = c:FindFirstChildOfClass("Humanoid"); if not h then return 0, 100 end
+    return h.Health, h.MaxHealth
+end
+
+local function EspCol(player)
+    local hp, mx = GetHP(player)
+    if mx > 0 and hp / mx < 0.35 then return Color3.fromRGB(255, 140, 0) end
+    return Color3.fromRGB(255, 40, 40)
+end
+
+-- ═══════════════════════════════
+--  ESP
+-- ═══════════════════════════════
+local function CreateESP(player)
+    local obj = { boxes = {}, conns = {} }
+
+    local bb = Instance.new("BillboardGui")
+    bb.Size = UDim2.new(0, 140, 0, 58); bb.StudsOffset = Vector3.new(0, 3.5, 0)
+    bb.AlwaysOnTop = true; bb.ResetOnSpawn = false; bb.MaxDistance = Config.MaxDist
+
+    local nameLbl = Instance.new("TextLabel", bb)
+    nameLbl.Size = UDim2.new(1, 0, 0.44, 0); nameLbl.BackgroundTransparency = 1
+    nameLbl.TextColor3 = Color3.fromRGB(255, 40, 40); nameLbl.TextStrokeTransparency = 0.3
+    nameLbl.TextStrokeColor3 = Color3.new(0, 0, 0); nameLbl.Font = Enum.Font.GothamBold
+    nameLbl.TextSize = 13; nameLbl.Text = player.Name
+
+    local infoLbl = Instance.new("TextLabel", bb)
+    infoLbl.Size = UDim2.new(1, 0, 0.38, 0); infoLbl.Position = UDim2.new(0, 0, 0.48, 0)
+    infoLbl.BackgroundTransparency = 1; infoLbl.TextColor3 = Color3.fromRGB(255, 40, 40)
+    infoLbl.TextStrokeTransparency = 0.3; infoLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+    infoLbl.Font = Enum.Font.Gotham; infoLbl.TextSize = 11; infoLbl.Text = ""
+
+    obj.bb = bb; obj.nameLbl = nameLbl; obj.infoLbl = infoLbl
+
+    local function Attach()
+        for _, b in ipairs(obj.boxes) do pcall(function() b:Destroy() end) end
+        obj.boxes = {}
+        local char = player.Character; if not char then return end
+        for _, pn in ipairs(Config.BodyParts) do
+            local part = char:FindFirstChild(pn)
+            if part and part:IsA("BasePart") then
+                local box = Instance.new("SelectionBox")
+                box.Adornee = part; box.Color3 = Color3.fromRGB(255, 40, 40)
+                box.LineThickness = 0.03; box.SurfaceTransparency = 0.85
+                box.SurfaceColor3 = Color3.fromRGB(255, 40, 40); box.Parent = workspace
+                table.insert(obj.boxes, box)
+            end
+        end
+        local head = char:FindFirstChild("Head") or char:FindFirstChildOfClass("BasePart")
+        if head then bb.Adornee = head; bb.Parent = char end
+    end
+
+    Attach()
+    table.insert(obj.conns, TC(player.CharacterAdded:Connect(function()
+        task.wait(0.2); Attach()
+    end)))
+    table.insert(obj.conns, TC(RunService.Heartbeat:Connect(function()
+        if Destroyed or not Config.EspEnabled then return end
+        local char = player.Character; if not char then return end
+        local head = char:FindFirstChild("Head") or char:FindFirstChildOfClass("BasePart")
+        local root = char:FindFirstChild("HumanoidRootPart")
+        local mr   = GetRoot()
+        if not head or not root or not mr then return end
+        local dist = math.floor((root.Position - mr.Position).Magnitude)
+        if dist > Config.MaxDist then
+            bb.Parent = nil
+            for _, b in ipairs(obj.boxes) do b.Visible = false end
+            return
+        end
+        if bb.Parent ~= char then bb.Adornee = head; bb.Parent = char end
+        local col = EspCol(player)
+        nameLbl.TextColor3 = col
+        local hp, mx = GetHP(player)
+        infoLbl.Text = string.format("♥ %d%%   📍 %dm",
+            mx > 0 and math.floor(hp / mx * 100) or 0, dist)
+        infoLbl.TextColor3 = col
+        for _, box in ipairs(obj.boxes) do
+            if box and box.Parent then box.Color3 = col; box.SurfaceColor3 = col end
+        end
+    end)))
+    return obj
+end
+
+local function RemoveESP(player)
+    local obj = EspObjects[player]; if not obj then return end
+    if obj.bb then pcall(function() obj.bb:Destroy() end) end
+    for _, b in ipairs(obj.boxes or {}) do pcall(function() b:Destroy() end) end
+    for _, c in ipairs(obj.conns or {}) do pcall(function() c:Disconnect() end) end
+    EspObjects[player] = nil
+end
+
+local function ClearESP()
+    for p, _ in pairs(EspObjects) do RemoveESP(p) end; EspObjects = {}
+end
+
+local function EnableESP()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then EspObjects[p] = CreateESP(p) end
+    end
+    TC(Players.PlayerAdded:Connect(function(p)
+        if Config.EspEnabled and not Destroyed then EspObjects[p] = CreateESP(p) end
+    end))
+    TC(Players.PlayerRemoving:Connect(function(p) RemoveESP(p) end))
+end
+
+-- ═══════════════════════════════
+--  NOCLIP CORRIGIDO
+--  Usa LoopedPhysics: desativa colisão a cada Stepped
+--  sem teleportar de volta (sem mexer em CFrame ou velocidade)
+-- ═══════════════════════════════
+local noclipConn = nil
+
+local function StartNoclip()
+    if noclipConn then return end
+    noclipConn = RunService.Stepped:Connect(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        for _, v in ipairs(char:GetDescendants()) do
+            if v:IsA("BasePart") and v.CanCollide then
+                v.CanCollide = false
+            end
+        end
+    end)
+end
+
+local function StopNoclip()
+    if noclipConn then
+        noclipConn:Disconnect()
+        noclipConn = nil
+    end
+    -- Restaura colisão
+    local char = LocalPlayer.Character
+    if char then
+        for _, v in ipairs(char:GetDescendants()) do
+            if v:IsA("BasePart") then
+                -- Humanoid controla CanCollide; forçar true causa loop
+                -- então deixamos o engine resetar sozinho ao respawnar
+                -- Apenas restaura a HumanoidRootPart
+                if v.Name == "HumanoidRootPart" then
+                    v.CanCollide = false -- HRP nunca tem colisão mesmo
+                end
+            end
+        end
+    end
+end
+
+-- Garante que o noclip continua após respawn do personagem
+TC(LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    if Config.NoclipEnabled then StartNoclip() end
+end))
+
+-- ═══════════════════════════════
+--  HITBOX
+-- ═══════════════════════════════
+TC(RunService.RenderStepped:Connect(function()
+    if Destroyed or not Config.HitboxEnabled then return end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p == LocalPlayer then continue end
+        pcall(function()
+            local c  = p.Character; if not c then return end
+            local rp = c:FindFirstChild("HumanoidRootPart"); if not rp then return end
+            rp.Size         = Vector3.new(_G.HitboxSize, _G.HitboxSize, _G.HitboxSize)
+            rp.Transparency = 0.6
+            rp.BrickColor   = BrickColor.new("Really blue")
+            rp.Material     = Enum.Material.Neon
+            rp.CanCollide   = false
+        end)
+    end
+end))
+
+local function StopHitbox()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p == LocalPlayer then continue end
+        pcall(function()
+            local c  = p.Character; if not c then return end
+            local rp = c:FindFirstChild("HumanoidRootPart"); if not rp then return end
+            rp.Size        = Vector3.new(2, 2, 1); rp.Transparency = 1
+            rp.Material    = Enum.Material.SmoothPlastic; rp.CanCollide = false
+        end)
+    end
+end
+
+-- ═══════════════════════════════
+--  ANTI-LAG
+--  Remove efeitos visuais pesados do mapa
+-- ═══════════════════════════════
+local antiLagBackup = {}
+
+local function ApplyAntiLag()
+    -- Qualidade de renderização
+    settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+
+    -- Desativa efeitos no Lighting
+    for _, fx in ipairs(Lighting:GetChildren()) do
+        if fx:IsA("PostEffect") or fx:IsA("Atmosphere") or fx:IsA("Sky") then
+            antiLagBackup[fx] = fx.Parent
+            fx.Parent = nil
+        end
+    end
+
+    -- Remove partículas e sons do workspace
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("ParticleEmitter") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+            pcall(function() v.Enabled = false end)
+        end
+        if v:IsA("Sound") then
+            pcall(function() v.Volume = 0 end)
+        end
+    end
+
+    -- Reduz sombras
+    Lighting.GlobalShadows     = false
+    Lighting.FogEnd            = 100000
+    Lighting.FogStart          = 100000
+end
+
+local function RemoveAntiLag()
+    settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+
+    -- Restaura efeitos de Lighting
+    for fx, parent in pairs(antiLagBackup) do
+        pcall(function() fx.Parent = parent end)
+    end
+    antiLagBackup = {}
+
+    -- Reativa partículas
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("ParticleEmitter") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+            pcall(function() v.Enabled = true end)
+        end
+        if v:IsA("Sound") then
+            pcall(function() v.Volume = 0.5 end)
+        end
+    end
+
+    Lighting.GlobalShadows = true
+end
+
+-- ═══════════════════════════════
+--  CLEANUP
+-- ═══════════════════════════════
+local function Cleanup()
+    Destroyed = true
+    Config.EspEnabled     = false
+    Config.NoclipEnabled  = false
+    Config.HitboxEnabled  = false
+    Config.AntiLagEnabled = false
+    ClearESP(); StopHitbox(); StopNoclip(); RemoveAntiLag()
+    for _, c in ipairs(AllConns) do pcall(function() c:Disconnect() end) end
+    AllConns = {}
+end
+
+-- ════════════════════════════════════════
+--  GUI
+-- ════════════════════════════════════════
+local SG = Instance.new("ScreenGui")
+SG.Name = "JujutsuHub"; SG.ResetOnSpawn = false
+SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; SG.DisplayOrder = 999
+pcall(function() SG.Parent = game:GetService("CoreGui") end)
+if not SG.Parent or not SG.Parent.Name then SG.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+local Win = Instance.new("Frame", SG)
+Win.Size          = UDim2.new(0, 350, 0, 520)
+Win.Position      = UDim2.new(0.5, -175, 0.5, -260)
+Win.BackgroundColor3 = Color3.fromRGB(5, 5, 8)
+Win.BorderSizePixel  = 0; Win.Active = true
+Instance.new("UICorner", Win).CornerRadius = UDim.new(0, 12)
+Instance.new("UIStroke", Win).Color        = Color3.fromRGB(35, 35, 45)
+
+local wDrag, dStart, dPos = false, nil, nil
+
+-- Header
+local Hdr = Instance.new("Frame", Win)
+Hdr.Size = UDim2.new(1, 0, 0, 54); Hdr.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+Hdr.BorderSizePixel = 0; Hdr.Active = true
+Instance.new("UICorner", Hdr).CornerRadius = UDim.new(0, 12)
+local HFix = Instance.new("Frame", Hdr)
+HFix.Size = UDim2.new(1, 0, 0.5, 0); HFix.Position = UDim2.new(0, 0, 0.5, 0)
+HFix.BackgroundColor3 = Color3.fromRGB(10, 10, 15); HFix.BorderSizePixel = 0
+
+local Acc = Instance.new("Frame", Hdr)
+Acc.Size = UDim2.new(1, 0, 0, 2); Acc.BorderSizePixel = 0
+Instance.new("UICorner", Acc).CornerRadius = UDim.new(1, 0)
+local AG = Instance.new("UIGradient", Acc)
+AG.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0,   Color3.fromRGB(255, 40,  40)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(180, 0,   0)),
+    ColorSequenceKeypoint.new(1,   Color3.fromRGB(255, 80,  0)),
+})
+
+Hdr.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        wDrag = true; dStart = i.Position; dPos = Win.Position
+    end
+end)
+Hdr.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        wDrag = false
+    end
+end)
+TC(UserInputService.InputChanged:Connect(function(i)
+    if not wDrag then return end
+    if i.UserInputType ~= Enum.UserInputType.MouseMovement and i.UserInputType ~= Enum.UserInputType.Touch then return end
+    local d = i.Position - dStart
+    Win.Position = UDim2.new(dPos.X.Scale, dPos.X.Offset + d.X, dPos.Y.Scale, dPos.Y.Offset + d.Y)
+end))
+
+local LogoF = Instance.new("Frame", Hdr)
+LogoF.Size = UDim2.new(0, 38, 0, 38); LogoF.Position = UDim2.new(0, 12, 0.5, -19)
+LogoF.BackgroundColor3 = Color3.fromRGB(200, 30, 30); LogoF.BorderSizePixel = 0
+Instance.new("UICorner", LogoF).CornerRadius = UDim.new(0, 9)
+local LogoL = Instance.new("TextLabel", LogoF)
+LogoL.Size = UDim2.new(1, 0, 1, 0); LogoL.BackgroundTransparency = 1
+LogoL.Text = "👁"; LogoL.TextSize = 20; LogoL.Font = Enum.Font.GothamBold
+
+local TitleL = Instance.new("TextLabel", Hdr)
+TitleL.Size = UDim2.new(1, -115, 0, 20); TitleL.Position = UDim2.new(0, 58, 0, 8)
+TitleL.BackgroundTransparency = 1; TitleL.Text = "JUJUTSU SHARINGANS HUB"
+TitleL.TextColor3 = Color3.fromRGB(255, 255, 255); TitleL.TextSize = 12
+TitleL.Font = Enum.Font.GothamBold; TitleL.TextXAlignment = Enum.TextXAlignment.Left
+
+local SubL = Instance.new("TextLabel", Hdr)
+SubL.Size = UDim2.new(1, -115, 0, 14); SubL.Position = UDim2.new(0, 58, 0, 29)
+SubL.BackgroundTransparency = 1; SubL.Text = "ESP • Noclip • Hitbox • Anti-Lag"
+SubL.TextColor3 = Color3.fromRGB(80, 80, 95); SubL.TextSize = 10
+SubL.Font = Enum.Font.Gotham; SubL.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Botão minimizar
+local MinB = Instance.new("TextButton", Hdr)
+MinB.Size = UDim2.new(0, 28, 0, 28); MinB.Position = UDim2.new(1, -64, 0.5, -14)
+MinB.BackgroundColor3 = Color3.fromRGB(25, 25, 35); MinB.Text = "─"
+MinB.TextColor3 = Color3.fromRGB(180, 180, 190); MinB.TextSize = 14
+MinB.Font = Enum.Font.GothamBold; MinB.BorderSizePixel = 0
+Instance.new("UICorner", MinB).CornerRadius = UDim.new(0, 7)
+Instance.new("UIStroke", MinB).Color        = Color3.fromRGB(55, 55, 65)
+
+-- Botão fechar
+local CloseB = Instance.new("TextButton", Hdr)
+CloseB.Size = UDim2.new(0, 28, 0, 28); CloseB.Position = UDim2.new(1, -30, 0.5, -14)
+CloseB.BackgroundColor3 = Color3.fromRGB(25, 25, 35); CloseB.Text = "✕"
+CloseB.TextColor3 = Color3.fromRGB(200, 200, 210); CloseB.TextSize = 14
+CloseB.Font = Enum.Font.GothamBold; CloseB.BorderSizePixel = 0
+Instance.new("UICorner", CloseB).CornerRadius = UDim.new(0, 7)
+Instance.new("UIStroke", CloseB).Color        = Color3.fromRGB(55, 55, 65)
+
+-- Container (tudo abaixo do header, esconde ao minimizar)
+local Container = Instance.new("Frame", Win)
+Container.Size = UDim2.new(1, 0, 1, -54); Container.Position = UDim2.new(0, 0, 0, 54)
+Container.BackgroundTransparency = 1; Container.BorderSizePixel = 0
+
+-- TabBar
+local TabBar = Instance.new("Frame", Container)
+TabBar.Size = UDim2.new(1, -20, 0, 34); TabBar.Position = UDim2.new(0, 10, 0, 6)
+TabBar.BackgroundColor3 = Color3.fromRGB(10, 10, 15); TabBar.BorderSizePixel = 0
+Instance.new("UICorner", TabBar).CornerRadius = UDim.new(0, 9)
+Instance.new("UIStroke", TabBar).Color        = Color3.fromRGB(26, 26, 35)
+
+local Tabs = {
+    { n = "ESP",     ic = "👁",  col = Color3.fromRGB(200, 30,  30)  },
+    { n = "MOVIM",   ic = "🌀",  col = Color3.fromRGB(30,  100, 200) },
+    { n = "HITBOX",  ic = "📦",  col = Color3.fromRGB(30,  80,  200) },
+    { n = "ANTLAG",  ic = "⚡",  col = Color3.fromRGB(200, 160, 0)   },
+}
+local TBtns = {}; local TPages = {}
+
+for i, t in ipairs(Tabs) do
+    local btn = Instance.new("TextButton", TabBar)
+    btn.Size     = UDim2.new(0.25, -4, 1, -8)
+    btn.Position = UDim2.new((i - 1) * 0.25, 2, 0, 4)
+    btn.BackgroundColor3 = Color3.fromRGB(18, 18, 26); btn.Text = t.ic
+    btn.TextColor3 = Color3.fromRGB(70, 70, 85); btn.TextSize = 17
+    btn.Font = Enum.Font.GothamBold; btn.BorderSizePixel = 0
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 7)
+    TBtns[t.n] = { btn = btn, col = t.col }
+
+    local pg = Instance.new("ScrollingFrame", Container)
+    pg.Size = UDim2.new(1, -20, 1, -56); pg.Position = UDim2.new(0, 10, 0, 46)
+    pg.BackgroundTransparency = 1; pg.BorderSizePixel = 0
+    pg.ScrollBarThickness = 2; pg.ScrollBarImageColor3 = Color3.fromRGB(50, 50, 65)
+    pg.CanvasSize = UDim2.new(0, 0, 0, 0); pg.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    pg.Visible = (t.n == "ESP")
+    TPages[t.n] = pg
+    local lay = Instance.new("UIListLayout", pg)
+    lay.SortOrder = Enum.SortOrder.LayoutOrder; lay.Padding = UDim.new(0, 8)
+    local pad = Instance.new("UIPadding", pg); pad.PaddingBottom = UDim.new(0, 10)
+end
+
+local function SetTab(n)
+    ActiveTab = n
+    for tn, d in pairs(TBtns) do
+        if tn == n then
+            TweenService:Create(d.btn, TweenInfo.new(0.15), { BackgroundColor3 = d.col }):Play()
+            d.btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        else
+            TweenService:Create(d.btn, TweenInfo.new(0.15), { BackgroundColor3 = Color3.fromRGB(18, 18, 26) }):Play()
+            d.btn.TextColor3 = Color3.fromRGB(70, 70, 85)
+        end
+    end
+    for pn, pg in pairs(TPages) do pg.Visible = (pn == n) end
+end
+for tn, d in pairs(TBtns) do d.btn.MouseButton1Click:Connect(function() SetTab(tn) end) end
+
+-- ── helpers de UI ─────────────────────────────
+local function Card(par, h, ord)
+    local c = Instance.new("Frame", par)
+    c.Size = UDim2.new(1, 0, 0, h); c.LayoutOrder = ord or 0
+    c.BackgroundColor3 = Color3.fromRGB(12, 12, 18); c.BorderSizePixel = 0
+    Instance.new("UICorner", c).CornerRadius = UDim.new(0, 10)
+    Instance.new("UIStroke", c).Color = Color3.fromRGB(24, 24, 34)
+    return c
+end
+
+local function BigBtn(par, txt, col, ord)
+    local b = Instance.new("TextButton", par)
+    b.Size = UDim2.new(1, 0, 0, 44); b.LayoutOrder = ord or 0
+    b.BackgroundColor3 = col or Color3.fromRGB(20, 20, 30); b.Text = txt
+    b.TextColor3 = Color3.fromRGB(220, 220, 230); b.TextSize = 13
+    b.Font = Enum.Font.GothamBold; b.BorderSizePixel = 0
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+    Instance.new("UIStroke", b).Color = Color3.fromRGB(55, 55, 70)
+    b.MouseEnter:Connect(function() TweenService:Create(b, TweenInfo.new(0.1), { BackgroundTransparency = 0.25 }):Play() end)
+    b.MouseLeave:Connect(function() TweenService:Create(b, TweenInfo.new(0.1), { BackgroundTransparency = 0 }):Play() end)
+    return b
+end
+
+local function StatusCard(par, ico, icoBg, title, sub, ord)
+    local c = Card(par, 68, ord)
+    local icoF = Instance.new("Frame", c)
+    icoF.Size = UDim2.new(0, 40, 0, 40); icoF.Position = UDim2.new(0, 12, 0.5, -20)
+    icoF.BackgroundColor3 = icoBg; icoF.BorderSizePixel = 0
+    Instance.new("UICorner", icoF).CornerRadius = UDim.new(0, 10)
+    local icoL = Instance.new("TextLabel", icoF)
+    icoL.Size = UDim2.new(1, 0, 1, 0); icoL.BackgroundTransparency = 1
+    icoL.Text = ico; icoL.TextSize = 20; icoL.Font = Enum.Font.GothamBold
+    local tl = Instance.new("TextLabel", c)
+    tl.Size = UDim2.new(1, -140, 0, 22); tl.Position = UDim2.new(0, 62, 0, 10)
+    tl.BackgroundTransparency = 1; tl.Text = title
+    tl.TextColor3 = Color3.fromRGB(220, 220, 230); tl.TextSize = 14
+    tl.Font = Enum.Font.GothamBold; tl.TextXAlignment = Enum.TextXAlignment.Left
+    local sl = Instance.new("TextLabel", c)
+    sl.Size = UDim2.new(1, -140, 0, 16); sl.Position = UDim2.new(0, 62, 0, 36)
+    sl.BackgroundTransparency = 1; sl.Text = sub
+    sl.TextColor3 = Color3.fromRGB(60, 60, 78); sl.TextSize = 11
+    sl.Font = Enum.Font.Gotham; sl.TextXAlignment = Enum.TextXAlignment.Left
+    local bdg = Instance.new("Frame", c)
+    bdg.Size = UDim2.new(0, 0, 0, 22); bdg.Position = UDim2.new(1, -10, 0.5, -11)
+    bdg.AnchorPoint = Vector2.new(1, 0); bdg.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+    bdg.BorderSizePixel = 0; bdg.AutomaticSize = Enum.AutomaticSize.X
+    Instance.new("UICorner", bdg).CornerRadius = UDim.new(1, 0)
+    Instance.new("UIStroke", bdg).Color = Color3.fromRGB(50, 50, 65)
+    local bp = Instance.new("UIPadding", bdg)
+    bp.PaddingLeft = UDim.new(0, 8); bp.PaddingRight = UDim.new(0, 8)
+    local bl = Instance.new("TextLabel", bdg)
+    bl.Size = UDim2.new(0, 0, 1, 0); bl.AutomaticSize = Enum.AutomaticSize.X
+    bl.BackgroundTransparency = 1; bl.Text = "OFF"
+    bl.TextColor3 = Color3.fromRGB(120, 120, 140); bl.TextSize = 10; bl.Font = Enum.Font.GothamBold
+    return c, tl, sl, bdg, bl
+end
+
+local function MkSlider(par, lbl, mn, mx, def, acCol, ord, cb)
+    local c = Card(par, 62, ord)
+    local lt = Instance.new("TextLabel", c)
+    lt.Size = UDim2.new(1, -16, 0, 18); lt.Position = UDim2.new(0, 12, 0, 8)
+    lt.BackgroundTransparency = 1; lt.Text = lbl .. ":  " .. def
+    lt.TextColor3 = Color3.fromRGB(160, 160, 175); lt.TextSize = 12
+    lt.Font = Enum.Font.GothamBold; lt.TextXAlignment = Enum.TextXAlignment.Left
+    local tr = Instance.new("Frame", c)
+    tr.Size = UDim2.new(1, -24, 0, 6); tr.Position = UDim2.new(0, 12, 0, 38)
+    tr.BackgroundColor3 = Color3.fromRGB(18, 18, 28); tr.BorderSizePixel = 0
+    Instance.new("UICorner", tr).CornerRadius = UDim.new(1, 0)
+    local pct = (def - mn) / (mx - mn)
+    local fl = Instance.new("Frame", tr)
+    fl.Size = UDim2.new(pct, 0, 1, 0); fl.BackgroundColor3 = acCol; fl.BorderSizePixel = 0
+    Instance.new("UICorner", fl).CornerRadius = UDim.new(1, 0)
+    local kn = Instance.new("Frame", tr)
+    kn.Size = UDim2.new(0, 16, 0, 16); kn.AnchorPoint = Vector2.new(0.5, 0.5)
+    kn.Position = UDim2.new(pct, 0, 0.5, 0)
+    kn.BackgroundColor3 = Color3.fromRGB(230, 230, 240); kn.BorderSizePixel = 0
+    Instance.new("UICorner", kn).CornerRadius = UDim.new(1, 0)
+    local ks = Instance.new("UIStroke", kn); ks.Color = acCol; ks.Thickness = 2
+    local sd = false
+    tr.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            sd = true; wDrag = false
+        end
+    end)
+    TC(UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then sd = false end
+    end))
+    TC(UserInputService.InputChanged:Connect(function(i)
+        if not sd then return end
+        if i.UserInputType ~= Enum.UserInputType.MouseMovement and i.UserInputType ~= Enum.UserInputType.Touch then return end
+        local rx = math.clamp((i.Position.X - tr.AbsolutePosition.X) / tr.AbsoluteSize.X, 0, 1)
+        local v  = math.floor(mn + rx * (mx - mn))
+        fl.Size = UDim2.new(rx, 0, 1, 0); kn.Position = UDim2.new(rx, 0, 0.5, 0)
+        lt.Text = lbl .. ":  " .. v; cb(v)
+    end))
+    return c
+end
+
+-- ── ABA ESP ──────────────────────────────────
+local PE = TPages["ESP"]
+local EspSC, _, EspSL, EspBdg, EspBdgL = StatusCard(PE, "👁", Color3.fromRGB(200, 30, 30), "ESP Vermelho", "Caixas + HP + distância", 1)
+local EspBtn = BigBtn(PE, "👁  ATIVAR ESP", Color3.fromRGB(160, 25, 25), 2)
+
+-- ── ABA MOVIMENTAÇÃO ─────────────────────────
+local PM = TPages["MOVIM"]
+local NcSC, _, NcSL, NcBdg, NcBdgL = StatusCard(PM, "🌀", Color3.fromRGB(30, 100, 200), "Noclip", "Atravessa paredes sem travar", 1)
+local NcBtn = BigBtn(PM, "🌀  ATIVAR NOCLIP", Color3.fromRGB(25, 80, 180), 2)
+
+-- Info card noclip
+local ncInfoCard = Card(PM, 52, 3)
+local ncInfoL    = Instance.new("TextLabel", ncInfoCard)
+ncInfoL.Size = UDim2.new(1, -20, 1, -10); ncInfoL.Position = UDim2.new(0, 10, 0, 5)
+ncInfoL.BackgroundTransparency = 1
+ncInfoL.Text = "💡 Desativa colisão a cada frame\n    Funciona após respawn automaticamente"
+ncInfoL.TextColor3 = Color3.fromRGB(60, 60, 78); ncInfoL.TextSize = 11
+ncInfoL.Font = Enum.Font.Gotham; ncInfoL.TextWrapped = true
+ncInfoL.TextXAlignment = Enum.TextXAlignment.Left; ncInfoL.TextYAlignment = Enum.TextYAlignment.Top
+
+-- ── ABA HITBOX ───────────────────────────────
+local PH = TPages["HITBOX"]
+local HbSC, _, HbSL, HbBdg, HbBdgL = StatusCard(PH, "📦", Color3.fromRGB(30, 80, 200), "Hitbox Azul", "HumanoidRootPart expandido", 1)
+local HbBtn = BigBtn(PH, "📦  ATIVAR HITBOX", Color3.fromRGB(25, 65, 180), 2)
+MkSlider(PH, "Tamanho da hitbox", 5, 1000, Config.HitboxSize, Color3.fromRGB(50, 130, 255), 3, function(v)
+    Config.HitboxSize = v; _G.HitboxSize = v
+end)
+
+-- ── ABA ANTI-LAG ─────────────────────────────
+local PAL = TPages["ANTLAG"]
+local AlSC, _, AlSL, AlBdg, AlBdgL = StatusCard(PAL, "⚡", Color3.fromRGB(200, 160, 0), "Anti-Lag", "Remove efeitos visuais pesados", 1)
+local AlBtn = BigBtn(PAL, "⚡  ATIVAR ANTI-LAG", Color3.fromRGB(160, 120, 0), 2)
+
+local alInfoCard = Card(PAL, 80, 3)
+local alInfoL    = Instance.new("TextLabel", alInfoCard)
+alInfoL.Size = UDim2.new(1, -20, 1, -10); alInfoL.Position = UDim2.new(0, 10, 0, 5)
+alInfoL.BackgroundTransparency = 1
+alInfoL.Text = "🔇 Reduz sons do mapa\n🌫️ Remove efeitos de pós-processamento\n💨 Desativa partículas (fogo, fumaça...)\n🌑 Desativa sombras e neblina"
+alInfoL.TextColor3 = Color3.fromRGB(60, 60, 78); alInfoL.TextSize = 11
+alInfoL.Font = Enum.Font.Gotham; alInfoL.TextWrapped = true
+alInfoL.TextXAlignment = Enum.TextXAlignment.Left; alInfoL.TextYAlignment = Enum.TextYAlignment.Top
+
+-- Status bar
+local SBar = Instance.new("Frame", Container)
+SBar.Size = UDim2.new(1, -20, 0, 26); SBar.Position = UDim2.new(0, 10, 1, -32)
+SBar.BackgroundColor3 = Color3.fromRGB(8, 8, 14); SBar.BorderSizePixel = 0
+Instance.new("UICorner", SBar).CornerRadius = UDim.new(0, 7)
+Instance.new("UIStroke", SBar).Color        = Color3.fromRGB(20, 20, 30)
+local STxt = Instance.new("TextLabel", SBar)
+STxt.Size = UDim2.new(1, -16, 1, 0); STxt.Position = UDim2.new(0, 8, 0, 0)
+STxt.BackgroundTransparency = 1; STxt.Text = "Jujutsu Sharingans Hub v2"
+STxt.TextColor3 = Color3.fromRGB(35, 35, 55); STxt.TextSize = 10
+STxt.Font = Enum.Font.Gotham; STxt.TextXAlignment = Enum.TextXAlignment.Left
+
+-- ════════════════════════════════════════
+--  UPDATE GUI
+-- ════════════════════════════════════════
+local function UpdateGUI()
+    if Config.EspEnabled then
+        EspBdgL.Text = "LIGADO"; EspSL.Text = "Ativo"
+        EspSL.TextColor3 = Color3.fromRGB(200, 200, 215)
+        EspBtn.Text = "🚫  DESATIVAR ESP"
+    else
+        EspBdgL.Text = "OFF"; EspSL.Text = "DESLIGADO"
+        EspSL.TextColor3 = Color3.fromRGB(60, 60, 78)
+        EspBtn.Text = "👁  ATIVAR ESP"
+    end
+
+    if Config.NoclipEnabled then
+        NcBdgL.Text = "LIGADO"; NcSL.Text = "Ativo — atravessando"
+        NcSL.TextColor3 = Color3.fromRGB(100, 160, 255)
+        NcBtn.Text = "🚫  DESATIVAR NOCLIP"
+    else
+        NcBdgL.Text = "OFF"; NcSL.Text = "DESLIGADO"
+        NcSL.TextColor3 = Color3.fromRGB(60, 60, 78)
+        NcBtn.Text = "🌀  ATIVAR NOCLIP"
+    end
+
+    if Config.HitboxEnabled then
+        HbBdgL.Text = "LIGADO"; HbSL.Text = "Ativo — size " .. Config.HitboxSize
+        HbSL.TextColor3 = Color3.fromRGB(80, 140, 255)
+        HbBtn.Text = "🚫  DESATIVAR HITBOX"
+    else
+        HbBdgL.Text = "OFF"; HbSL.Text = "DESLIGADO"
+        HbSL.TextColor3 = Color3.fromRGB(60, 60, 78)
+        HbBtn.Text = "📦  ATIVAR HITBOX"
+    end
+
+    if Config.AntiLagEnabled then
+        AlBdgL.Text = "LIGADO"; AlSL.Text = "Ativo — FPS melhorado"
+        AlSL.TextColor3 = Color3.fromRGB(255, 200, 50)
+        AlBtn.Text = "🚫  DESATIVAR ANTI-LAG"
+    else
+        AlBdgL.Text = "OFF"; AlSL.Text = "DESLIGADO"
+        AlSL.TextColor3 = Color3.fromRGB(60, 60, 78)
+        AlBtn.Text = "⚡  ATIVAR ANTI-LAG"
+    end
+end
+
+-- ════════════════════════════════════════
+--  MINIMIZAR / FECHAR
+-- ════════════════════════════════════════
+MinB.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    TweenService:Create(Win, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+        Size = minimized and UDim2.new(0, 350, 0, 54) or UDim2.new(0, 350, 0, 520)
+    }):Play()
+    Container.Visible = not minimized
+    MinB.Text = minimized and "▢" or "─"
+end)
+
+CloseB.MouseButton1Click:Connect(function()
+    Cleanup()
+    TweenService:Create(Win, TweenInfo.new(0.18), {
+        Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1
+    }):Play()
+    task.wait(0.2); SG:Destroy()
+end)
+
+-- ════════════════════════════════════════
+--  BOTÕES
+-- ════════════════════════════════════════
+EspBtn.MouseButton1Click:Connect(function()
+    Config.EspEnabled = not Config.EspEnabled
+    if Config.EspEnabled then EnableESP() else ClearESP() end
+    UpdateGUI()
+end)
+
+NcBtn.MouseButton1Click:Connect(function()
+    Config.NoclipEnabled = not Config.NoclipEnabled
+    if Config.NoclipEnabled then StartNoclip() else StopNoclip() end
+    UpdateGUI()
+end)
+
+HbBtn.MouseButton1Click:Connect(function()
+    Config.HitboxEnabled = not Config.HitboxEnabled
+    if not Config.HitboxEnabled then StopHitbox() end
+    UpdateGUI()
+end)
+
+AlBtn.MouseButton1Click:Connect(function()
+    Config.AntiLagEnabled = not Config.AntiLagEnabled
+    if Config.AntiLagEnabled then ApplyAntiLag() else RemoveAntiLag() end
+    UpdateGUI()
+end)
+
+-- ════════════════════════════════════════
+--  BOTÕES MOBILE
+-- ════════════════════════════════════════
+local function MobBtn(ic, x, cb2)
+    local b = Instance.new("TextButton", SG)
+    b.Size = UDim2.new(0, 50, 0, 50); b.Position = UDim2.new(0, x, 1, -66)
+    b.BackgroundColor3 = Color3.fromRGB(12, 12, 20); b.Text = ic
+    b.TextSize = 20; b.Font = Enum.Font.GothamBold
+    b.BorderSizePixel = 0; b.ZIndex = 10
+    Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
+    Instance.new("UIStroke", b).Color = Color3.fromRGB(50, 50, 65)
+    b.MouseButton1Click:Connect(cb2)
+    return b
+end
+
+MobBtn("👁", 16, function()
+    Config.EspEnabled = not Config.EspEnabled
+    if Config.EspEnabled then EnableESP() else ClearESP() end
+    UpdateGUI()
+end)
+MobBtn("🌀", 74, function()
+    Config.NoclipEnabled = not Config.NoclipEnabled
+    if Config.NoclipEnabled then StartNoclip() else StopNoclip() end
+    UpdateGUI()
+end)
+MobBtn("📦", 132, function()
+    Config.HitboxEnabled = not Config.HitboxEnabled
+    if not Config.HitboxEnabled then StopHitbox() end
+    UpdateGUI()
+end)
+MobBtn("⚡", 190, function()
+    Config.AntiLagEnabled = not Config.AntiLagEnabled
+    if Config.AntiLagEnabled then ApplyAntiLag() else RemoveAntiLag() end
+    UpdateGUI()
+end)
+
+SetTab("ESP")
+UpdateGUI()
+print("Jujutsu Sharingans Hub v2 | Loaded")
